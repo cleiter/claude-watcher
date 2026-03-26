@@ -101,12 +101,15 @@ def has_permission_prompt(last_lines: str) -> bool:
                     return True
 
     # General case: detect consecutive numbered options (1. ... / 2. ...)
-    # regardless of cursor character
+    # regardless of cursor character, but not if an idle ❯ prompt follows
     for i, line in enumerate(lines):
         if re.match(r'^\s*[❯›>]?\s*1\.\s', line):
             for j in range(i + 1, min(i + 5, len(lines))):
                 if re.match(r'^\s+2\.\s', lines[j]):
-                    return True
+                    # A bare ❯ below means these are just numbered text, not a prompt
+                    if not any("❯" in lines[k] and not re.search(r'\d+\.', lines[k])
+                               for k in range(j + 1, len(lines))):
+                        return True
 
     # Footer line present in Claude Code choice prompts
     for line in lines:
@@ -199,6 +202,10 @@ def extract_context(lines: list[str]) -> tuple[str, bool]:
         if re.match(r'^\s*[❯›>]?\s*1\.\s', line):
             for j in range(i + 1, min(i + 5, len(lines))):
                 if re.match(r'^\s+2\.\s', lines[j]):
+                    # A bare ❯ below means these are just numbered text, not a prompt
+                    if any("❯" in lines[k] and not re.search(r'\d+\.', lines[k])
+                           for k in range(j + 1, len(lines))):
+                        break
                     # Found numbered options — look for question above
                     for k in range(i - 1, max(i - 10, -1), -1):
                         stripped = lines[k].strip()
