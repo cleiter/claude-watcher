@@ -332,9 +332,9 @@ def main():
                 if p.pane_id not in idle_since:
                     idle_since[p.pane_id] = now
                 dur = format_duration(int(now - idle_since[p.pane_id]))
-                out.append(f"  {BOLD}{YELLOW}💤  {p.window_label}{NC}"
+                out.append(f"  {BOLD}{GREEN}💤  {p.window_label}{NC}"
                            f"  {p.directory:<35s}"
-                           f"  {YELLOW}idle {dur}{NC}"
+                           f"  {GREEN}idle {dur}{NC}"
                            f"  {p.context_pct}")
                 if p.last_message:
                     out.append(f"      {DIM}{p.last_message}{NC}")
@@ -342,7 +342,7 @@ def main():
 
             for p in working:
                 idle_since.pop(p.pane_id, None)
-                out.append(f"  {GREEN}✓  {p.window_label}{NC}"
+                out.append(f"  {YELLOW}✓  {p.window_label}{NC}"
                            f"  {p.directory:<35s}"
                            f"  {DIM}{p.work_status}{NC}")
             if working:
@@ -355,7 +355,7 @@ def main():
                 if asking:
                     parts.append(f"{NC}{RED}{len(asking)} asking{NC}{DIM}")
                 if idle:
-                    parts.append(f"{NC}{YELLOW}{len(idle)} idle{NC}{DIM}")
+                    parts.append(f"{NC}{GREEN}{len(idle)} idle{NC}{DIM}")
                 parts.append(f"{len(working)} working")
                 out.append(f"  {DIM}── {' · '.join(parts)} ──{NC}")
 
