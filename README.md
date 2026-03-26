@@ -46,12 +46,6 @@ Code instances. No more "wait, how long has that been idle?"
 python3 claude-watcher.py [options]
 ```
 
-Run it in a dedicated tmux pane:
-
-```
-python3 ~/claude-watcher/claude-watcher.py
-```
-
 Press `Ctrl-C` to quit.
 
 ### Options
