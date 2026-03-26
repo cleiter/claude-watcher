@@ -19,8 +19,8 @@ def parse_args() -> argparse.Namespace:
         description="Monitor Claude Code instances across tmux panes.",
     )
     p.add_argument(
-        "-n", "--interval", type=int, default=3, metavar="SEC",
-        help="poll interval in seconds (default: 3)",
+        "-n", "--interval", type=float, default=3, metavar="SEC",
+        help="poll interval in seconds, e.g. 0.5 (default: 3)",
     )
     p.add_argument(
         "--bell", default="no", choices=["yes", "no"],
@@ -362,7 +362,8 @@ def main():
                 out.append(f"  {DIM}── {' · '.join(parts)} ──{NC}")
 
             out.append("")
-            out.append(f"  {DIM}Poll {args.interval}s · Ctrl-C to quit{NC}")
+            interval_str = f"{args.interval:g}"
+            out.append(f"  {DIM}Poll {interval_str}s · Ctrl-C to quit{NC}")
 
             # Single write: cursor home, each line clears its tail, then wipe below
             buf = "\033[H" + "\n".join(line + CLR for line in out) + "\033[J"
