@@ -127,7 +127,7 @@ def is_working(last_lines: str) -> bool:
         if re.match(r'^\s+(Running|Waiting)…', line):
             return True
         # Claude tool activity lines: "Reading N file…", "Checking…", etc.
-        if re.match(r'^\s*(Reading|Writing|Checking|Searching|Loading)\s.*…', line):
+        if re.match(r'^\s*(Reading|Writing|Checking|Searching|Loading|Generating|Thinking)\s.*…', line):
             return True
     return False
 
@@ -254,9 +254,13 @@ def scan_panes() -> list[ClaudePane]:
         has_prompt = "❯" in last_lines
         permission = has_permission_prompt(last_lines)
 
-        if permission:
+        working_now = is_working(last_lines)
+
+        if working_now:
+            state = "working"
+        elif permission:
             state = "asking"
-        elif has_prompt and not is_working(last_lines):
+        elif has_prompt:
             state = "asking" if is_asking else "idle"
         else:
             state = "working"
