@@ -255,8 +255,10 @@ def main():
     notify_available = args.notify != "no" and shutil.which("notify-send") is not None
 
     idle_since: dict[str, float] = {}
-    prev_idle: set[str] = set()
-    prev_asking: set[str] = set()
+    # Seed with current state so the first poll doesn't fire notifications
+    initial_panes = scan_panes()
+    prev_idle: set[str] = {p.pane_id for p in initial_panes if p.state != "working"}
+    prev_asking: set[str] = {p.pane_id for p in initial_panes if p.state == "asking"}
 
     CLR = "\033[K"  # clear to end of line
 
