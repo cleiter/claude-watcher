@@ -342,7 +342,7 @@ def main():
 
             for p in working:
                 idle_since.pop(p.pane_id, None)
-                out.append(f"  {YELLOW}✓  {p.window_label}{NC}"
+                out.append(f"  {YELLOW}✓   {p.window_label}{NC}"
                            f"  {p.directory:<35s}"
                            f"  {DIM}{p.work_status}{NC}")
             if working:
