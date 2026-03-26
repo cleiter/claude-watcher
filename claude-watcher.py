@@ -88,16 +88,31 @@ def tmux_capture_pane(pane_id: str) -> str:
 
 
 def has_permission_prompt(last_lines: str) -> bool:
-    """Detect if a permission/choice prompt is showing (numbered options near ❯)."""
+    """Detect if a permission/choice prompt is showing (numbered options)."""
     lines = last_lines.splitlines()
+
+    # Look for the ❯ cursor on a numbered option line (original check)
     for i, line in enumerate(lines):
         if "❯" in line and re.search(r'\d+\.', line):
             return True
-        # Also check for numbered options right after ❯
         if "❯" in line:
             for j in range(i + 1, min(i + 5, len(lines))):
                 if re.match(r'^\s+\d+\.', lines[j]):
                     return True
+
+    # General case: detect consecutive numbered options (1. ... / 2. ...)
+    # regardless of cursor character
+    for i, line in enumerate(lines):
+        if re.match(r'^\s*[❯›>]?\s*1\.\s', line):
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if re.match(r'^\s+2\.\s', lines[j]):
+                    return True
+
+    # Footer line present in Claude Code choice prompts
+    for line in lines:
+        if "Esc to cancel" in line and "Tab to amend" in line:
+            return True
+
     return False
 
 
@@ -179,6 +194,26 @@ def extract_context(lines: list[str]) -> tuple[str, bool]:
                 break
             return "waiting for selection", True
 
+    # Fallback: detect numbered choices without ❯ cursor
+    for i, line in enumerate(lines):
+        if re.match(r'^\s*[❯›>]?\s*1\.\s', line):
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if re.match(r'^\s+2\.\s', lines[j]):
+                    # Found numbered options — look for question above
+                    for k in range(i - 1, max(i - 10, -1), -1):
+                        stripped = lines[k].strip()
+                        if not stripped or re.match(r'^[─╌━═]+', stripped):
+                            continue
+                        if stripped.endswith("?"):
+                            return stripped[:122], True
+                        break
+                    return "waiting for selection", True
+
+    # Fallback: "Esc to cancel" footer means a prompt is active
+    for line in lines:
+        if "Esc to cancel" in line and "Tab to amend" in line:
+            return "waiting for selection", True
+
     # Fallback: last ● message (Claude's regular output) — just idle
     for line in reversed(lines):
         if line.startswith("● "):
@@ -209,7 +244,7 @@ def scan_panes() -> list[ClaudePane]:
         if not content:
             continue
 
-        last_lines = "\n".join(content.splitlines()[-15:])
+        last_lines = "\n".join(content.rstrip().splitlines()[-15:])
         directory, context_pct, last_msg, is_asking = extract_info(content)
 
         # Fallback: use tmux's pane cwd when status line isn't visible
