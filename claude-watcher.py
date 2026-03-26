@@ -45,6 +45,7 @@ NC = "\033[0m"
 class ClaudePane:
     pane_id: str
     window_label: str
+    window_active: bool
     directory: str
     context_pct: str
     state: str  # "asking", "idle", or "working"
@@ -52,22 +53,23 @@ class ClaudePane:
     work_status: str
 
 
-def tmux_list_panes() -> list[tuple[str, str, str, str, str]]:
-    """Return list of (pane_id, pid, command, cwd, window_name) for all tmux panes."""
+def tmux_list_panes() -> list[tuple[str, str, str, str, str, bool]]:
+    """Return list of (pane_id, pid, command, cwd, window_label, window_active) for all tmux panes."""
     sep = "|||"
     try:
         out = subprocess.run(
             ["tmux", "list-panes", "-a", "-F",
              f"#{{session_name}}:#{{window_index}}.#{{pane_index}}{sep}"
              f"#{{pane_pid}}{sep}#{{pane_current_command}}{sep}"
-             f"#{{pane_current_path}}{sep}#{{window_index}}:#{{window_name}}"],
+             f"#{{pane_current_path}}{sep}#{{window_index}}:#{{window_name}}{sep}"
+             f"#{{window_active}}"],
             capture_output=True, text=True, timeout=5,
         )
         results = []
         for line in out.stdout.strip().splitlines():
-            parts = line.split(sep, 4)
-            if len(parts) == 5:
-                results.append((parts[0], parts[1], parts[2], parts[3], parts[4]))
+            parts = line.split(sep, 5)
+            if len(parts) == 6:
+                results.append((parts[0], parts[1], parts[2], parts[3], parts[4], parts[5] == "1"))
         return results
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return []
@@ -199,7 +201,7 @@ def format_duration(seconds: int) -> str:
 def scan_panes() -> list[ClaudePane]:
     """Scan all tmux panes and return Claude instances with their state."""
     panes = []
-    for pane_id, pid, cmd, cwd, window_label in tmux_list_panes():
+    for pane_id, pid, cmd, cwd, window_label, window_active in tmux_list_panes():
         if cmd != "claude":
             continue
 
@@ -237,6 +239,7 @@ def scan_panes() -> list[ClaudePane]:
         panes.append(ClaudePane(
             pane_id=pane_id,
             window_label=window_label,
+            window_active=window_active,
             directory=directory or "?",
             context_pct=context_pct,
             state=state,
@@ -342,7 +345,7 @@ def main():
             new_asking = {p.pane_id for p in asking} - prev_asking
             if notify_available:
                 for p in asking:
-                    if p.pane_id in new_asking:
+                    if p.pane_id in new_asking and not p.window_active:
                         msg = p.last_message or "waiting for input"
                         subprocess.Popen(
                             ["notify-send", "-u", "critical",
