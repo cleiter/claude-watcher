@@ -60,7 +60,7 @@ Press `Ctrl-C` to quit.
 |------|-------------|
 | `-n`, `--interval SEC` | Poll interval in seconds (default: 3) |
 | `--bell yes\|no` | Terminal bell on state changes (default: no) |
-| `--notify yes\|no` | Desktop notifications via notify-send (default: yes) |
+| `--notify yes\|no\|all` | Desktop notifications: yes=background only, all=always, no=off (default: yes) |
 
 ## Requirements
 

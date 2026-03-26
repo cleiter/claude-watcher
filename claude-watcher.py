@@ -27,8 +27,8 @@ def parse_args() -> argparse.Namespace:
         help="terminal bell on state changes (default: no)",
     )
     p.add_argument(
-        "--notify", default="yes", choices=["yes", "no"],
-        help="desktop notifications via notify-send (default: yes)",
+        "--notify", default="yes", choices=["yes", "no", "all"],
+        help="desktop notifications: yes=background windows only, all=always, no=off (default: yes)",
     )
     return p.parse_args()
 
@@ -252,7 +252,7 @@ def scan_panes() -> list[ClaudePane]:
 
 def main():
     args = parse_args()
-    notify_available = args.notify == "yes" and shutil.which("notify-send") is not None
+    notify_available = args.notify != "no" and shutil.which("notify-send") is not None
 
     idle_since: dict[str, float] = {}
     prev_idle: set[str] = set()
@@ -345,7 +345,7 @@ def main():
             new_asking = {p.pane_id for p in asking} - prev_asking
             if notify_available:
                 for p in asking:
-                    if p.pane_id in new_asking and not p.window_active:
+                    if p.pane_id in new_asking and (args.notify == "all" or not p.window_active):
                         msg = p.last_message or "waiting for input"
                         subprocess.Popen(
                             ["notify-send", "-u", "critical",
