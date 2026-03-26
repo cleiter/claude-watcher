@@ -308,10 +308,8 @@ def main():
     try:
         while True:
             now = time.time()
-            timestamp = time.strftime("%H:%M:%S")
-
             out: list[str] = []
-            out.append(f"{BOLD}  Claude Watcher  {timestamp}{NC}")
+            out.append(f"{BOLD}  Claude Watcher{NC}")
             out.append("")
 
             panes = scan_panes()
