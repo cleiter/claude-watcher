@@ -337,7 +337,6 @@ def main():
                 out.append(f"  {YELLOW}✓   {p.window_label}{NC}"
                            f"  {p.directory:<35s}"
                            f"  {DIM}{p.work_status}{NC}")
-            if working:
                 out.append("")
 
             for p in idle:
