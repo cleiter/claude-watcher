@@ -354,9 +354,10 @@ def main():
                 parts = [f"{len(panes)} total"]
                 if asking:
                     parts.append(f"{NC}{RED}{len(asking)} asking{NC}{DIM}")
+                if working:
+                    parts.append(f"{NC}{YELLOW}{len(working)} working{NC}{DIM}")
                 if idle:
                     parts.append(f"{NC}{GREEN}{len(idle)} idle{NC}{DIM}")
-                parts.append(f"{len(working)} working")
                 out.append(f"  {DIM}── {' · '.join(parts)} ──{NC}")
 
             out.append("")
