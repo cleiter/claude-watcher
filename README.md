@@ -65,7 +65,7 @@ Press `Ctrl-C` to quit.
 
 | Flag | Description |
 |------|-------------|
-| `-n`, `--interval SEC` | Poll interval in seconds (default: 0.5) |
+| `-n`, `--interval SEC` | Poll interval in seconds (default: 2, same as `watch`) |
 | `--bell yes\|no` | Terminal bell on state changes (default: no) |
 | `--notify yes\|no\|all` | Desktop notifications: yes=background only, all=always, no=off (default: yes) |
 | `--tray yes\|no\|auto` | System tray indicator: auto=if available, yes=require, no=off (default: auto) |

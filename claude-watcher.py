@@ -31,8 +31,8 @@ def parse_args() -> argparse.Namespace:
         description="Monitor Claude Code instances across tmux panes.",
     )
     p.add_argument(
-        "-n", "--interval", type=float, default=0.5, metavar="SEC",
-        help="poll interval in seconds (default: 0.5)",
+        "-n", "--interval", type=float, default=2, metavar="SEC",
+        help="poll interval in seconds (default: 2)",
     )
     p.add_argument(
         "--bell", default="no", choices=["yes", "no"],

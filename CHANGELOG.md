@@ -15,5 +15,5 @@
 - Terminal bell support (`--bell`) on state changes
 - Display order: asking (red) → working (yellow) → idle (green)
 - Context usage percentage and idle/wait duration tracking
-- Sub-second poll interval support (default 0.5s)
+- Sub-second poll interval support (default 2s)
 - Detection of permission prompts, numbered choice menus, and spinner activity
