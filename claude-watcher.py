@@ -5,13 +5,25 @@ Shows which Claudes are idle/waiting for input vs actively working.
 """
 
 import argparse
+import os
 import subprocess
 import re
 import shutil
 import sys
+import tempfile
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
+try:
+    import gi
+    gi.require_version('AyatanaAppIndicator3', '0.1')
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import AyatanaAppIndicator3 as AppIndicator, Gtk, GLib
+    HAS_APPINDICATOR = True
+except (ImportError, ValueError):
+    HAS_APPINDICATOR = False
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,6 +41,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--notify", default="yes", choices=["yes", "no", "all"],
         help="desktop notifications: yes=background windows only, all=always, no=off (default: yes)",
+    )
+    p.add_argument(
+        "--tray", default="auto", choices=["yes", "no", "auto"],
+        help="system tray indicator: yes=require, auto=if available, no=off (default: auto)",
     )
     return p.parse_args()
 
@@ -51,6 +67,106 @@ class ClaudePane:
     state: str  # "asking", "idle", or "working"
     last_message: str
     work_status: str
+
+
+class TrayIndicator:
+    """System tray icon showing Claude instance status."""
+
+    def __init__(self):
+        self._icon_dir = tempfile.mkdtemp(prefix="claude-watcher-")
+        self._generate_icons()
+        self._indicator = AppIndicator.Indicator.new(
+            "claude-watcher",
+            "claude-gray",
+            AppIndicator.IndicatorCategory.APPLICATION_STATUS,
+        )
+        self._indicator.set_icon_theme_path(self._icon_dir)
+        self._indicator.set_status(AppIndicator.IndicatorStatus.ACTIVE)
+
+        menu = Gtk.Menu()
+        item = Gtk.MenuItem(label="No Claude instances")
+        item.set_sensitive(False)
+        menu.append(item)
+        menu.show_all()
+        self._indicator.set_menu(menu)
+
+        self._thread = threading.Thread(target=Gtk.main, daemon=True)
+        self._thread.start()
+
+    def _svg_circle(self, color: str, text: str = "") -> str:
+        text_el = ""
+        if text:
+            text_el = (f'<text x="11" y="15.5" text-anchor="middle" '
+                       f'font-size="13" font-weight="bold" fill="white" '
+                       f'font-family="sans-serif">{text}</text>')
+        return ('<?xml version="1.0"?>\n'
+                '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">\n'
+                f'<circle cx="11" cy="11" r="10" fill="{color}"/>\n'
+                f'{text_el}\n</svg>')
+
+    def _generate_icons(self):
+        icons = {
+            "claude-gray": ("#6b7280", ""),
+            "claude-green": ("#22c55e", ""),
+            "claude-yellow": ("#eab308", ""),
+            "claude-red": ("#ef4444", ""),
+        }
+        for i in range(1, 10):
+            icons[f"claude-red-{i}"] = ("#ef4444", str(i))
+        for name, (color, text) in icons.items():
+            with open(os.path.join(self._icon_dir, f"{name}.svg"), "w") as f:
+                f.write(self._svg_circle(color, text))
+
+    def update(self, panes: list[ClaudePane]):
+        """Schedule a tray update on the GTK thread."""
+        GLib.idle_add(self._do_update, list(panes))
+
+    def _do_update(self, panes: list[ClaudePane]):
+        asking = [p for p in panes if p.state == "asking"]
+        working = [p for p in panes if p.state == "working"]
+        idle = [p for p in panes if p.state == "idle"]
+
+        if asking:
+            n = len(asking)
+            icon = f"claude-red-{n}" if n <= 9 else "claude-red"
+            self._indicator.set_icon_full(icon, f"{n} asking")
+        elif working:
+            self._indicator.set_icon_full("claude-yellow", "working")
+        elif idle:
+            self._indicator.set_icon_full("claude-green", "idle")
+        else:
+            self._indicator.set_icon_full("claude-gray", "no instances")
+
+        menu = Gtk.Menu()
+        if not panes:
+            item = Gtk.MenuItem(label="No Claude instances")
+            item.set_sensitive(False)
+            menu.append(item)
+        else:
+            state_icons = {"asking": "⏳", "working": "⚡", "idle": "💤"}
+            for p in asking + working + idle:
+                label = f"{state_icons[p.state]}  {p.window_label}   {p.directory}"
+                item = Gtk.MenuItem(label=label)
+                item.set_sensitive(False)
+                menu.append(item)
+            menu.append(Gtk.SeparatorMenuItem())
+            parts = []
+            if asking:
+                parts.append(f"{len(asking)} asking")
+            if working:
+                parts.append(f"{len(working)} working")
+            if idle:
+                parts.append(f"{len(idle)} idle")
+            summary = Gtk.MenuItem(label=f"{len(panes)} total: {', '.join(parts)}")
+            summary.set_sensitive(False)
+            menu.append(summary)
+        menu.show_all()
+        self._indicator.set_menu(menu)
+        return False  # one-shot, don't repeat
+
+    def cleanup(self):
+        GLib.idle_add(Gtk.main_quit)
+        shutil.rmtree(self._icon_dir, ignore_errors=True)
 
 
 def tmux_list_panes() -> list[tuple[str, str, str, str, str, bool]]:
@@ -300,6 +416,16 @@ def main():
     args = parse_args()
     notify_available = args.notify != "no" and shutil.which("notify-send") is not None
 
+    tray = None
+    if args.tray != "no":
+        if HAS_APPINDICATOR:
+            tray = TrayIndicator()
+        elif args.tray == "yes":
+            print("Error: AppIndicator not available. "
+                  "Install gir1.2-ayatanaappindicator3-0.1",
+                  file=sys.stderr)
+            sys.exit(1)
+
     idle_since: dict[str, float] = {}
     # Seed with current state so the first poll doesn't fire notifications
     initial_panes = scan_panes()
@@ -320,6 +446,10 @@ def main():
             out.append("")
 
             panes = scan_panes()
+
+            if tray:
+                tray.update(panes)
+
             asking = [p for p in panes if p.state == "asking"]
             idle = [p for p in panes if p.state == "idle"]
             working = [p for p in panes if p.state == "working"]
@@ -404,6 +534,8 @@ def main():
             time.sleep(args.interval)
 
     finally:
+        if tray:
+            tray.cleanup()
         # Restore cursor and main screen buffer
         sys.stdout.write("\033[?25h\033[?1049l")
         sys.stdout.flush()

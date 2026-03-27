@@ -7,6 +7,12 @@ task and has been sitting at the prompt since lunch. You have no idea.
 **claude-watcher** gives you a single dashboard for all your Claude
 Code instances. No more "wait, how long has that been idle?"
 
+It also puts a **system tray indicator** in your panel — a colored badge
+that shows at a glance if any Claude needs your attention, even when
+you're in a different app.
+
+![System tray indicator showing 2 instances needing input](screenshots/tray-indicator.png)
+
 ## 📸 Screenshot
 
 ```
@@ -36,6 +42,13 @@ Code instances. No more "wait, how long has that been idle?"
   - 🟡 **Idle** — Claude finished and is waiting
   - 🟢 **Working** — Claude is actively doing its thing
 - 🔔 Desktop notifications (via `notify-send`) when Claude asks for input
+- 🔵 **System tray indicator** (Linux) — colored badge in your panel:
+  - Red with count when instances need input
+  - Yellow when working
+  - Green when all idle
+  - Right-click menu lists each instance with state and directory
+  - Works on GNOME, KDE, XFCE, MATE, Budgie, and other desktops with
+    AppIndicator/SNI support
 - Shows tmux window name, working directory, context usage, and idle
   duration
 - Flicker-free rendering using alternate screen buffer
@@ -52,15 +65,17 @@ Press `Ctrl-C` to quit.
 
 | Flag | Description |
 |------|-------------|
-| `-n`, `--interval SEC` | Poll interval in seconds (default: 3) |
+| `-n`, `--interval SEC` | Poll interval in seconds (default: 0.5) |
 | `--bell yes\|no` | Terminal bell on state changes (default: no) |
 | `--notify yes\|no\|all` | Desktop notifications: yes=background only, all=always, no=off (default: yes) |
+| `--tray yes\|no\|auto` | System tray indicator: auto=if available, yes=require, no=off (default: auto) |
 
 ## Requirements
 
 - Python 3.10+
 - tmux
 - `notify-send` (optional, for desktop notifications)
+- `gir1.2-ayatanaappindicator3-0.1` (optional, for system tray indicator)
 
 ## License
 
