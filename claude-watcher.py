@@ -335,6 +335,11 @@ def extract_context(lines: list[str]) -> tuple[str, bool]:
                 if text_lines:
                     break
                 continue
+            # Skip user input lines (previous ❯ prompts with typed text)
+            if '❯' in stripped:
+                if text_lines:
+                    break
+                continue
             # Include ● lines (Claude's message) but stop after
             if stripped.startswith('● '):
                 text_lines.append(stripped[2:])

@@ -8,6 +8,7 @@
 - `--tray` flag: `auto` (default), `yes`, or `no`
 - Dynamic poll rate adjustment with `[` / `]` keys
   (0.1s steps up to 1s, 0.5s steps up to 5s, 1s steps after)
+- Fix false "asking" detection when user's own typed question contains `?`
 - Detect free-form questions (sentences ending with `?`) as "asking" state,
   not just numbered option prompts
 - Detect API errors (529 overloaded, 429 rate limit, etc.) as "asking" state

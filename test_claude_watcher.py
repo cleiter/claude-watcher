@@ -267,6 +267,19 @@ class TestExtractContextFreeFormQuestions:
         assert asking is True
         assert "Should I proceed" in msg
 
+    def test_user_input_with_question_not_asking(self):
+        """User's own typed question (previous ❯ prompt) should NOT trigger asking."""
+        lines = [
+            "* Scurrying… (1m 18s · ↑ 120 tokens)",
+            "",
+            "❯ how does this work? can you explain",
+            "",
+            "─────────────────",
+            "❯ Press up to edit queued messages",
+        ]
+        msg, asking = extract_context(lines)
+        assert asking is False
+
     def test_separator_stops_search(self):
         """A separator between content blocks stops searching upward."""
         lines = [
