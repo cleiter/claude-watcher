@@ -51,6 +51,7 @@ you're in a different app.
     AppIndicator/SNI support
 - Shows tmux window name, working directory, context usage, and idle
   duration
+- Adjustable poll rate at runtime with `[` / `]` keys
 - Flicker-free rendering using alternate screen buffer
 
 ## Usage

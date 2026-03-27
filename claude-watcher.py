@@ -6,13 +6,16 @@ Shows which Claudes are idle/waiting for input vs actively working.
 
 import argparse
 import os
+import select
 import subprocess
 import re
 import shutil
 import sys
 import tempfile
+import termios
 import threading
 import time
+import tty
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,6 +50,8 @@ def parse_args() -> argparse.Namespace:
         help="system tray indicator: yes=require, auto=if available, no=off (default: auto)",
     )
     return p.parse_args()
+
+MIN_INTERVAL = 0.1
 
 # ANSI colors
 BOLD = "\033[1m"
@@ -426,6 +431,7 @@ def main():
                   file=sys.stderr)
             sys.exit(1)
 
+    interval = max(args.interval, MIN_INTERVAL)
     idle_since: dict[str, float] = {}
     # Seed with current state so the first poll doesn't fire notifications
     initial_panes = scan_panes()
@@ -434,9 +440,11 @@ def main():
 
     CLR = "\033[K"  # clear to end of line
 
-    # Alternate screen buffer + hide cursor
+    # Alternate screen buffer + hide cursor + cbreak for keypress detection
+    old_term = termios.tcgetattr(sys.stdin)
     sys.stdout.write("\033[?1049h\033[?25l")
     sys.stdout.flush()
+    tty.setcbreak(sys.stdin.fileno())
 
     try:
         while True:
@@ -499,8 +507,8 @@ def main():
                 out.append(f"  {DIM}── {' · '.join(parts)} ──{NC}")
 
             out.append("")
-            interval_str = f"{args.interval:g}"
-            out.append(f"  {DIM}Poll {interval_str}s · Ctrl-C to quit{NC}")
+            interval_str = f"{interval:g}"
+            out.append(f"  {DIM}Poll {interval_str}s · [ ] adjust · Ctrl-C to quit{NC}")
 
             # Single write: cursor home, each line clears its tail, then wipe below
             buf = "\033[H" + "\n".join(line + CLR for line in out) + "\033[J"
@@ -531,9 +539,35 @@ def main():
                         )
             prev_asking = {p.pane_id for p in asking}
 
-            time.sleep(args.interval)
+            # Sleep while listening for [ ] keypresses
+            deadline = time.time() + interval
+            while True:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    break
+                ready, _, _ = select.select([sys.stdin], [], [], min(remaining, 0.1))
+                if ready:
+                    ch = sys.stdin.read(1)
+                    if ch == '[':
+                        if interval <= 1:
+                            interval = round(interval - 0.1, 1)
+                        elif interval <= 5:
+                            interval = round(interval - 0.5, 1)
+                        else:
+                            interval = round(interval - 1, 1)
+                        interval = max(interval, MIN_INTERVAL)
+                        break  # redraw immediately
+                    elif ch == ']':
+                        if interval < 1:
+                            interval = round(interval + 0.1, 1)
+                        elif interval < 5:
+                            interval = round(interval + 0.5, 1)
+                        else:
+                            interval = round(interval + 1, 1)
+                        break
 
     finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_term)
         if tray:
             tray.cleanup()
         # Restore cursor and main screen buffer

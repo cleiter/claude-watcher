@@ -6,6 +6,8 @@
   (red with count for asking, yellow for working, green for idle)
 - Right-click tray menu lists each Claude instance with state and directory
 - `--tray` flag: `auto` (default), `yes`, or `no`
+- Dynamic poll rate adjustment with `[` / `]` keys
+  (0.1s steps up to 1s, 0.5s steps up to 5s, 1s steps after)
 
 ## 2026-03-26
 
