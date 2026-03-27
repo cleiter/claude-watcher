@@ -2,8 +2,8 @@
 
 ## 2026-03-27
 
-- Add system tray indicator with colored badge showing instance status
-  (red with count for asking, yellow for working, green for idle)
+- Add system tray indicator using Claude logo with colored state icons
+  (red with count badge for asking, yellow for working, green for idle)
 - Right-click tray menu lists each Claude instance with state and directory
 - `--tray` flag: `auto` (default), `yes`, or `no`
 - Dynamic poll rate adjustment with `[` / `]` keys
