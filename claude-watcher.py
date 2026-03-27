@@ -286,7 +286,8 @@ def extract_context(lines: list[str]) -> tuple[str, bool]:
     """Find what Claude is asking — permission prompts, questions, or last message.
 
     Returns (message, is_asking) where is_asking=True means Claude needs
-    a specific answer (permission prompt with numbered options), not just idle.
+    a specific answer (permission prompt with numbered options, or a
+    free-form question ending with ?), not just idle.
     """
     # Find the last ❯ prompt line
     prompt_idx = None
@@ -317,6 +318,53 @@ def extract_context(lines: list[str]) -> tuple[str, bool]:
                     return stripped[:122], True
                 break
             return "waiting for selection", True
+
+        # No numbered options — check for free-form questions / errors
+        text_lines = []
+        for i in range(prompt_idx - 1, max(prompt_idx - 15, -1), -1):
+            stripped = lines[i].strip()
+            if not stripped:
+                if text_lines:
+                    break
+                continue
+            # Skip timing lines like "* Churned for 1m 25s" / "✻ Cogitated for 3m"
+            if re.match(r'^[*✱✽✢·✻☵✿⚡✤✣✦✧⏳]\s+\w+\s+for\s+\d', stripped):
+                continue
+            # Skip prompt-area separators, stop at content separators
+            if re.match(r'^[─╌━═]+', stripped):
+                if text_lines:
+                    break
+                continue
+            # Include ● lines (Claude's message) but stop after
+            if stripped.startswith('● '):
+                text_lines.append(stripped[2:])
+                break
+            text_lines.append(stripped)
+
+        if text_lines:
+            text_block = ' '.join(reversed(text_lines))
+            # Match ? at sentence boundaries (space/end), not inside quotes
+            matches = list(re.finditer(r'\?(?:\s|$)', text_block))
+            if matches:
+                q_idx = matches[-1].start()
+                period_idx = text_block.rfind('. ', 0, q_idx)
+                sent_start = period_idx + 2 if period_idx >= 0 else 0
+                question = text_block[sent_start:q_idx + 1].strip()
+                return question[:122], True
+
+            # Check for API errors
+            for tl in text_lines:
+                if 'API Error:' in tl:
+                    m = re.search(r'API Error:\s*(\d+)', tl)
+                    error_desc = "API error"
+                    if m:
+                        type_m = re.search(r'"error":\{"type":"(\w+)"', tl)
+                        error_desc = f"API error {m.group(1)}"
+                        if type_m:
+                            etype = type_m.group(1)
+                            etype = etype.replace('_error', '').replace('_', ' ')
+                            error_desc += f" ({etype})"
+                    return error_desc, True
 
     # Fallback: detect numbered choices without ❯ cursor
     for i, line in enumerate(lines):

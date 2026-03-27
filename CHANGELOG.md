@@ -8,6 +8,10 @@
 - `--tray` flag: `auto` (default), `yes`, or `no`
 - Dynamic poll rate adjustment with `[` / `]` keys
   (0.1s steps up to 1s, 0.5s steps up to 5s, 1s steps after)
+- Detect free-form questions (sentences ending with `?`) as "asking" state,
+  not just numbered option prompts
+- Detect API errors (529 overloaded, 429 rate limit, etc.) as "asking" state
+- Add unit tests for state detection functions
 
 ## 2026-03-26
 
