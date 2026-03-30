@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-03-30
+
+- Auto-dismiss desktop notifications when Claude resumes working
+  (uses D-Bus CloseNotification to cleanly remove them)
+
 ## 2026-03-27
 
 - Add system tray indicator using Claude logo with colored state icons

@@ -522,6 +522,7 @@ def main():
     initial_panes = scan_panes()
     prev_idle: set[str] = {p.pane_id for p in initial_panes if p.state != "working"}
     prev_asking: set[str] = {p.pane_id for p in initial_panes if p.state == "asking"}
+    notif_ids: dict[str, str] = {}  # pane_id -> desktop notification ID
 
     CLR = "\033[K"  # clear to end of line
 
@@ -612,17 +613,37 @@ def main():
                 sys.stdout.flush()
             prev_idle = current_idle
 
-            new_asking = {p.pane_id for p in asking} - prev_asking
+            current_asking = {p.pane_id for p in asking}
+            new_asking = current_asking - prev_asking
+            resolved_asking = prev_asking - current_asking
             if notify_available:
                 for p in asking:
                     if p.pane_id in new_asking and (args.notify == "all" or not p.window_active):
                         msg = p.last_message or "waiting for input"
+                        try:
+                            result = subprocess.run(
+                                ["notify-send", "-u", "critical", "--print-id",
+                                 f"Claude {p.window_label}", msg],
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                timeout=2,
+                            )
+                            nid = result.stdout.decode().strip()
+                            if nid:
+                                notif_ids[p.pane_id] = nid
+                        except (subprocess.TimeoutExpired, OSError):
+                            pass
+                for pane_id in resolved_asking:
+                    nid = notif_ids.pop(pane_id, None)
+                    if nid:
                         subprocess.Popen(
-                            ["notify-send", "-u", "critical",
-                             f"Claude {p.window_label}", msg],
+                            ["gdbus", "call", "--session",
+                             "--dest", "org.freedesktop.Notifications",
+                             "--object-path", "/org/freedesktop/Notifications",
+                             "--method", "org.freedesktop.Notifications.CloseNotification",
+                             nid],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                         )
-            prev_asking = {p.pane_id for p in asking}
+            prev_asking = current_asking
 
             # Sleep while listening for [ ] keypresses
             deadline = time.time() + interval
